@@ -13,6 +13,7 @@ This project runs on a Raspberry Pi with a Sense HAT and displays football (socc
 **Requirements**
 - **Hardware**: Raspberry Pi with Sense HAT (or a mocked `sense-hat-led` implementation for development).
 - **Node.js**: v14+ recommended.
+- 
 - **API Key**: A valid API key for API-Football (v3) — set in `FOOTBALL_API_KEY`. Note that this API does not provide live scores or current season tables to users on the free plan, so you need some level of paid plan to actually get returns for the API calls. As such, there is certainly no reason to stick with this API if you can find a better one.
 
 **Quick Start**
@@ -22,7 +23,7 @@ This project runs on a Raspberry Pi with a Sense HAT and displays football (socc
 ```bash
 git clone https://github.com/wallinrex/football-api.git
 cd football_api
-npm install
+npm install sense-hat-led
 ```
 
 - Configure your API key (copy and edit the example.env file):
@@ -91,6 +92,9 @@ Note: While a message or animation is displaying, navigation input is temporaril
 
 **License**
 - This project is licensed under the **MIT License** — see the `LICENSE` file.
+
+**Attributions**
+- This project includes MIT-licensed code from sense-hat-joystick.
 
 **Notes & Troubleshooting**
 - If the display remains blank, ensure the Sense HAT is connected, `sense-hat-led` is functional, and `FOOTBALL_API_KEY` is set.
