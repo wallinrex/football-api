@@ -1,3 +1,7 @@
+// This file includes code from sense-hat-joystick (MIT License)
+// Copyright (c) 2015 Diogo Resende
+
+
 "use strict";
 const EventEmitter = require("events");
 const glob         = require("glob");
