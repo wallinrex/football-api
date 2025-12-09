@@ -16,7 +16,7 @@ class FootballApp {
     this.joystick = new Joystick();
     this.frames = new Frames();
     this.apiService = new FootballApiService();
-    
+
     this.leagueChoice = 0;
     this.isTableViewActive = false;
     this.tableHandlers = null;
@@ -24,16 +24,16 @@ class FootballApp {
     this.idleInterval = null;
     this.inactivityTimeout = null;
     this.isIdleActive = false;
-    
+    this.isLeagueNavActive = false;
+
     // Bind league navigation methods for proper event listener removal
     this.boundPreviousLeague = this.previousLeague.bind(this);
     this.boundNextLeague = this.nextLeague.bind(this);
     this.boundShowLeagueName = this.showLeagueName.bind(this);
-    this.boundClearDisplay = this.clearDisplay.bind(this);
     this.boundShowLeagueStandings = this.showLeagueStandings.bind(this);
     this.boundShowLeagueOrLive = this.showLeagueOrLive.bind(this);
     this.boundOnUserInput = this.onUserInput.bind(this);
-    
+
     this.setupLeagueNavigation();
     this.startDisplay();
     this.startIdleLoop();
@@ -43,18 +43,41 @@ class FootballApp {
    * Setup initial joystick listeners for league selection
    */
   setupLeagueNavigation() {
+    if (this.isLeagueNavActive) return;
+
     this.joystick.on("left", this.boundPreviousLeague);
     this.joystick.on("right", this.boundNextLeague);
     this.joystick.on("down", this.boundShowLeagueName);
-    this.joystick.on("up", this.boundClearDisplay);
     this.joystick.on("enter", this.boundShowLeagueOrLive);
 
     // Also listen for input generically to manage idle state
     this.joystick.on("left", this.boundOnUserInput);
     this.joystick.on("right", this.boundOnUserInput);
     this.joystick.on("down", this.boundOnUserInput);
-    this.joystick.on("up", this.boundOnUserInput);
     this.joystick.on("enter", this.boundOnUserInput);
+
+    this.isLeagueNavActive = true;
+  }
+
+  /**
+   * Remove league selection listeners to block input during transitions/messages
+   */
+  removeLeagueNavigation() {
+    if (!this.isLeagueNavActive) return;
+
+    this.joystick.off("left", this.boundPreviousLeague);
+    this.joystick.off("right", this.boundNextLeague);
+    this.joystick.off("down", this.boundShowLeagueName);
+    this.joystick.off("enter", this.boundShowLeagueOrLive);
+    this.joystick.off("down", this.boundShowLeagueName);
+    this.joystick.off("enter", this.boundShowLeagueOrLive);
+
+    this.joystick.off("left", this.boundOnUserInput);
+    this.joystick.off("right", this.boundOnUserInput);
+    this.joystick.off("down", this.boundOnUserInput);
+    this.joystick.off("enter", this.boundOnUserInput);
+
+    this.isLeagueNavActive = false;
   }
 
   /**
@@ -96,23 +119,14 @@ class FootballApp {
   }
 
   /**
-   * Clear the display
-   */
-  clearDisplay() {
-    if (this.isMessageDisplaying) return;
-    sense.clear();
-  }
-
-  /**
    * Show league standings/table
    */
   async showLeagueStandings() {
     if (this.isTableViewActive || this.isMessageDisplaying) return;
-    
+
     try {
       const leagueId = CONFIG.LEAGUES.IDS[this.leagueChoice];
       const apiResponse = await this.apiService.getStandings(leagueId);
-
       const leagueResp = apiResponse && apiResponse.response && apiResponse.response[0] && apiResponse.response[0].league;
       const standingsSets = (leagueResp && leagueResp.standings) ? leagueResp.standings : [];
 
@@ -125,7 +139,7 @@ class FootballApp {
         : (Array.isArray(standingsSets) ? standingsSets[0] || [] : []);
 
       const standings = StandingsProcessor.process(standingsInput);
-      
+
       await this.enterTableView(standings);
     } catch (error) {
       console.error("Error fetching standings:", error);
@@ -139,6 +153,9 @@ class FootballApp {
    */
   async showLeagueOrLive() {
     if (this.isTableViewActive || this.isMessageDisplaying) return;
+
+    // Prevent further league navigation/input while we process live/standings
+    this.removeLeagueNavigation();
 
     try {
       const leagueId = CONFIG.LEAGUES.IDS[this.leagueChoice];
@@ -191,6 +208,11 @@ class FootballApp {
         console.error('Error running ball animation after error:', animErr);
       }
       await this.showLeagueStandings();
+    } finally {
+      // If we did not transition into table view (e.g., early return), restore nav
+      if (!this.isTableViewActive) {
+        this.setupLeagueNavigation();
+      }
     }
   }
 
@@ -242,7 +264,7 @@ class FootballApp {
   }
 
   /**
-   * Start the idle loop cycling through flags every 3 seconds
+   * Start the idle loop cycling through flags every 5 seconds
    */
   startIdleLoop() {
     if (this.isIdleActive) return;
@@ -269,6 +291,8 @@ class FootballApp {
    * Handle any user input: stop idle loop and (re)start inactivity timer
    */
   onUserInput() {
+    // Ignore input entirely while a message/animation is showing (e.g., "No Live Matches")
+    if (this.isMessageDisplaying) return;
     // Any user input should stop idle loop
     this.stopIdleLoop();
     // Reset inactivity timer to resume idle loop after 60s of no input
@@ -334,12 +358,12 @@ class FootballApp {
   showMessageAsync(message, colors, scrollSpeed = 0.07) {
     return new Promise((resolve) => {
       this.isMessageDisplaying = true;
-      
+
       // Handle array of message parts with different colors
       if (Array.isArray(message)) {
         let totalDuration = 0;
         const parts = [];
-        
+
         // Calculate timing for each part
         for (let i = 0; i < message.length; i++) {
           const text = message[i];
@@ -348,7 +372,7 @@ class FootballApp {
           parts.push({ text, color, duration });
           totalDuration += duration;
         }
-        
+
         // Display each part sequentially
         let currentTime = 0;
         parts.forEach((part) => {
@@ -357,7 +381,7 @@ class FootballApp {
           }, currentTime);
           currentTime += part.duration;
         });
-        
+
         setTimeout(() => {
           this.isMessageDisplaying = false;
           resolve();
@@ -388,12 +412,8 @@ class FootballApp {
     this.isTableViewActive = true;
     let selectedTeam = 0;
 
-    // Remove league navigation listeners using bound methods
-    this.joystick.off("left", this.boundPreviousLeague);
-    this.joystick.off("right", this.boundNextLeague);
-    this.joystick.off("down", this.boundShowLeagueName);
-    this.joystick.off("up", this.boundClearDisplay);
-    this.joystick.off("enter", this.boundShowLeagueOrLive);
+    // Remove league navigation listeners to avoid conflicts while in table view
+    this.removeLeagueNavigation();
 
     // Create table navigation handlers
     const handleUp = () => {
@@ -411,13 +431,13 @@ class FootballApp {
       const team = standings[selectedTeam];
       const goalDiffSign = team.goalsDiff > 0 ? "+" : "";
       const goalDiffColor = team.goalsDiff >= 0 ? CONFIG.DISPLAY.COLOR.GREEN : CONFIG.DISPLAY.COLOR.RED;
-      
+
       const messageParts = [
         `${team.rank}. ${team.team}: Pts: ${team.points} GD: `,
         `${goalDiffSign}${team.goalsDiff}`
       ];
       const colors = [CONFIG.DISPLAY.COLOR.WHITE, goalDiffColor];
-      
+
       await this.showMessageAsync(messageParts, colors);
       this.displayTableView(standings);
       sense.setPixel(0, 0, 255, 0, 0);
