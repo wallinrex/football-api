@@ -85,6 +85,15 @@ class DisplayUtils {
   static formatPosition(position) {
     return ` ${position}.`;
   }
+
+  /**
+   * Remove diacritics from string (e.g., ä→a, å→a, ö→o)
+   * @param {string} str - String with potential diacritics
+   * @returns {string} String without diacritics
+   */
+  static removeDiacritics(str) {
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
 }
 
 module.exports = DisplayUtils;

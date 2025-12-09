@@ -366,7 +366,7 @@ class FootballApp {
 
         // Calculate timing for each part
         for (let i = 0; i < message.length; i++) {
-          const text = message[i];
+          const text = DisplayUtils.removeDiacritics(message[i]);
           const color = (colors && colors[i]) ? colors[i] : CONFIG.DISPLAY.COLOR.WHITE;
           const duration = text.length * CONFIG.DISPLAY.CHAR_DELAY_MS;
           parts.push({ text, color, duration });
@@ -388,9 +388,10 @@ class FootballApp {
         }, totalDuration);
       } else {
         // Single message string
+        const normalizedMessage = DisplayUtils.removeDiacritics(message);
         const color = (colors && colors[0]) ? colors[0] : CONFIG.DISPLAY.COLOR.WHITE;
-        sense.showMessage(message, scrollSpeed, color);
-        const duration = message.length * CONFIG.DISPLAY.CHAR_DELAY_MS;
+        sense.showMessage(normalizedMessage, scrollSpeed, color);
+        const duration = normalizedMessage.length * CONFIG.DISPLAY.CHAR_DELAY_MS;
         setTimeout(() => {
           this.isMessageDisplaying = false;
           resolve();
