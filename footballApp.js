@@ -200,14 +200,33 @@ class FootballApp {
       await this.showLeagueStandings();
     } catch (error) {
       console.error("Error checking live fixtures:", error);
-      // On error, notify user and fallback to standings (with animation)
-      await this.showMessageAsync(["No Live Matches"], [CONFIG.DISPLAY.COLOR.RED]);
-      try {
-        await this.showBallAnimation(200);
-      } catch (animErr) {
-        console.error('Error running ball animation after error:', animErr);
+      
+      // Check if this is a network error (fetch failed due to no connection)
+      const isNetworkError = error instanceof TypeError && 
+                            (error.message.includes('fetch') || 
+                             error.message.includes('network') ||
+                             error.message.includes('Failed to fetch'));
+      
+      if (isNetworkError) {
+        // Network connection error - show appropriate message and return to league selection
+        await this.showMessageAsync(["No Network Connection"], [CONFIG.DISPLAY.COLOR.RED]);
+        try {
+          await this.showBallAnimation(200);
+        } catch (animErr) {
+          console.error('Error running ball animation after error:', animErr);
+        }
+        // Return to league selection - display current flag
+        this.updateDisplay();
+      } else {
+        // Other error - fallback to standings (with animation)
+        await this.showMessageAsync(["No Live Matches"], [CONFIG.DISPLAY.COLOR.RED]);
+        try {
+          await this.showBallAnimation(200);
+        } catch (animErr) {
+          console.error('Error running ball animation after error:', animErr);
+        }
+        await this.showLeagueStandings();
       }
-      await this.showLeagueStandings();
     } finally {
       // If we did not transition into table view (e.g., early return), restore nav
       if (!this.isTableViewActive) {
